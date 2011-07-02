@@ -47,7 +47,7 @@ def get_text (text):
 		return texts[text][lang]
 	except KeyError:
 		print 'Warning: Missing localized string: %(text)s (lang: %(lang)s) ' % vars()
-		return text	
+		return text
 _ = get_text
 
 def ask_parameter ():
@@ -110,7 +110,7 @@ def version_info ():
 		return xshade.shade().version_info
 	except AttributeError:
 		return 'Shade 10 (%d)' % xshade.shade().version
-		
+
 def write_index_html (index_path):
 	f = open(index_path, "w")
 	f.write("""<!DOCTYPE html>
@@ -121,6 +121,18 @@ def write_index_html (index_path):
 	<meta name="generator" content=\"""" + version_info() + """\">
 	<title>HTML5 Object VR</title>
 	<script>
+		function addEventListener_ (obj, type, listener, useCapture) {
+			if (obj.addEventListener) { obj.addEventListener(type, listener, useCapture); } // all browsers, except IE.
+			else if (obj.attachEvent) { obj.attachEvent('on' + type, listener); } // IE.
+		}
+		function removeEventListener_ (obj, type, listener, useCapture) {
+			if (obj.removeEventListener) { obj.removeEventListener(type, listener, useCapture); } // all browsers, except IE.
+			else if (obj.detachEvent) { obj.detachEvent('on' + type, listener); } // IE.
+		}
+		function removeSelection_ () {
+			if (window.getSelection) { window.getSelection().removeAllRanges();	} // all browsers, except IE.
+			else if (document.selection.createRange) { document.selection.empty(); } // IE.
+		}
 		objectvr = {
 			imageName: function (name, num, ext, index) {
 				m = (num + index)
@@ -130,9 +142,9 @@ def write_index_html (index_path):
 				var deltaX = parseInt((objectvr._firstX - e.clientX) / objectvr._step);
 				var index = objectvr._lastIndex + deltaX
 				if (0 <= index) { objectvr._index = (index % objectvr._N); }
-				else            { objectvr._index = (objectvr._N - 1) - ((Math.abs(index) - 1) % (objectvr._N - 1)); }		
+				else            { objectvr._index = (objectvr._N - 1) - ((Math.abs(index) - 1) % (objectvr._N - 1)); }
 				objectvr._img.src = objectvr.imageName(objectvr._name, objectvr._num, objectvr._ext, objectvr._index);
-				window.getSelection().removeAllRanges();
+				removeSelection_();
 			},
 			mousemove: function(e) {
 				objectvr.rotate(e);
@@ -144,7 +156,7 @@ def write_index_html (index_path):
 				for (var i = 0; i < frames; ++i) {
 					var imgObj = new Image();
 					imgObj.src = this.imageName(name, num, ext, i);
-				}				
+				}
 				this._name = name;
 				this._num = num;
 				this._ext = ext;
@@ -159,22 +171,22 @@ def write_index_html (index_path):
 				this._img.id = 'objvr';
 				this._img.src = this.imageName(name, num, ext, this._index);
 				this._viewer.appendChild(this._img);
-				this._img.addEventListener('mousedown', function mousedown(e) { 
+				addEventListener_(this._img, 'mousedown', function mousedown(e) {
 					objectvr._firstX = e.clientX;
-					document.addEventListener('mousemove', objectvr.mousemove, true);
+					addEventListener_(document, 'mousemove', objectvr.mousemove, true);
 					e.preventDefault();
 				}, true);
-				document.addEventListener('mouseup', function mouseup(e) {				
-					document.removeEventListener('mousemove', objectvr.mousemove, true);
+				addEventListener_(document, 'mouseup', function mouseup(e) {
+					removeEventListener_(document, 'mousemove', objectvr.mousemove, true);
 					objectvr._lastIndex = objectvr._index;
 				}, true);
-				this._img.addEventListener('touchstart', function touchstart (e) { 
+				addEventListener_(this._img, 'touchstart', function touchstart (e) {
 					objectvr._firstX = e.touches[0].clientX;
-					document.addEventListener('touchmove', objectvr.touchmove, true);
+					addEventListener_(document, 'touchmove', objectvr.touchmove, true);
 					e.preventDefault();
 				}, true);
-				document.addEventListener('touched', function touched (e) {				
-					document.removeEventListener('touchmove', objectvr.touchmove, true);
+				addEventListener_(document, 'touched', function touched (e) {
+					removeEventListener_(document, 'touchmove', objectvr.touchmove, true);
 					objectvr._lastIndex = objectvr._index;
 				}, true);
 			}
@@ -191,7 +203,7 @@ def write_index_html (index_path):
 	<section id="objectvr-main" style="width:320px; margin:0 auto 0 auto;">
 		<div id="viewer">Loading...</div>
 		<section id="rendering_info">
-			<p>Rendering Info</p> 
+			<p>Rendering Info</p>
 			""" + version_info() + """<br>
 			Total Time: """ + "%d sec." % renderinfo.total_time + """<br>
 			Total Frames: """ + "%d" % renderinfo.total_frames + """<br>

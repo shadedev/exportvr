@@ -14,8 +14,7 @@ objectvr.pyをShadeのscriptsフォルダにコピーして下さい。
 imagesフォルダにはレンダリングされた連番画像が作成されます。
 
 index.htmlをブラウザで開くとデモサイトのように表示されます。
-確認ブラウザ: Firefox 5, Chrome 12, Opera 11, Safari 5, iPhone, iPad
-※ Internet Explorer では動作しません。
+確認ブラウザ: IE9, Firefox 5, Chrome 12, Opera 11, Safari 5, iPhone, iPad
 
 動作確認Shadeバージョン:
 Shade 10.5.3, Shade 11.0.4, Shade 12.0.3
