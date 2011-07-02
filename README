@@ -1,0 +1,21 @@
+﻿HTML Object VRの出力スクリプト
+
+デモ：
+http://labs.shade-online.jp/html5/objectvr/
+
+インストール：
+objectvr.pyをShadeのscriptsフォルダにコピーして下さい。
+
+使用方法:
+スクリプトメニューから「Object VR HTML エクスポート」を選択。
+ダイアログの「出力先フォルダ」と「水平方向の分割数」を指定してOKを押すとレンダリングが始まります。
+
+完了後に出力先フォルダにindex.htmlとimagesフォルダが作成されます。
+imagesフォルダにはレンダリングされた連番画像が作成されます。
+
+index.htmlをブラウザで開くとデモサイトのように表示されます。
+確認ブラウザ: Firefox 5, Chrome 12, Opera 11, Safari 5, iPhone, iPad
+※ Internet Explorer では動作しません。
+
+動作確認Shadeバージョン:
+Shade 10.5.3, Shade 11.0.4, Shade 12.0.3
