@@ -2,6 +2,9 @@
 # -*- coding: utf-8 -*-
 # @title \en Export Object VR HTML \enden
 # @title \ja Object VR HTML エクスポート \endja
+# @description \en \enden
+# @description \ja \endja
+# @version 0.3.0
 #
 
 import os
@@ -15,13 +18,16 @@ except ImportError, e:
 	raise
 
 SCRIPT_UUID = "c50b3d49-6573-447c-96d2-edcf903f6bf8"
-number_of_col = 30
-number_of_row = 19
-default_number_of_col = 30
-default_number_of_row = 19
-render_hemisphere = False
-makefolder = False
-output_path = None
+
+class Settings:
+	number_of_col = 30
+	number_of_row = 19
+	default_number_of_col = 30
+	default_number_of_row = 19
+	render_hemisphere = False
+	makefolder = False
+	output_path = None
+settings = Settings
 
 class RenderingInfo:
 	start_time = 0
@@ -55,7 +61,10 @@ def get_text (text):
 		'error_invalid_number_of_col':{'ja':'エラー: 分割数を指定してください.', 'en':'Error: Invalid number of col.'},
 		'error_import_numpy_failed':{'ja':'エラー: numpyがインストールされていません。Shadeのアップデートを行ってください.', 'en':'Error: import numpy failed.'},
 		'done':{'ja':'完了', 'en':'Done'},
-		'canceled':{'ja':'キャンセル', 'en':'Canceled'}
+		'canceled':{'ja':'キャンセル', 'en':'Canceled'},
+		'objectvr_option':{'ja':'Object VR オプション', 'en':'Object VR'},
+		'output_option':{'ja':'出力オプション', 'en':'Output'},
+		'untitled':{'ja':u'名称未設定', 'en':'Untitled'}
 	}
 	lang = get_lang()
 	try:
@@ -69,37 +78,43 @@ def get_default_path ():
 	import platform
 	if platform.system() == 'Windows':
 		if platform.version()[0] < 6:
-			return os.expanduser('~')
+			return os.path.join(os.expanduser('~'), 'My Documents') # Windows XP
 	return os.path.join(os.path.expanduser('~'), 'Documents')
 
 def open_option_dialog ():
-	global number_of_col, number_of_row, render_hemisphere, output_path, makefolder
+	global settings
 	dialog = xshade.create_dialog_with_uuid(SCRIPT_UUID)
-	path_id = dialog.append_path(_('output_folder'))
+	# Objectvr option
+	dialog.begin_group(_('objectvr_option'))
 	col_id = dialog.append_int(_('number_of_col'), '')
 	row_id = dialog.append_int(_('number_of_row'), '')
 	hemisphere_id = dialog.append_bool(_('render_hemisphere'))
+	dialog.end_group()
+	# Output option
+	dialog.begin_group(_('output_option'))
+	path_id = dialog.append_path(_('output_folder'))
 	makefolder_id = dialog.append_bool(_('make_scenename_subfolder'))
+	dialog.end_group()
 	dialog.set_default_value(path_id, get_default_path())
-	dialog.set_default_value(col_id, default_number_of_col)
-	dialog.set_default_value(row_id, default_number_of_row)
+	dialog.set_default_value(col_id, settings.default_number_of_col)
+	dialog.set_default_value(row_id, settings.default_number_of_row)
 	dialog.set_default_value(hemisphere_id, False)
 	dialog.set_default_value(makefolder_id, False)
 	dialog.append_default_button()
 	if not dialog.ask('Object VR'):
 		return False
-	number_of_col = dialog.get_value(col_id)
-	number_of_row = dialog.get_value(row_id)
-	render_hemisphere = dialog.get_value(hemisphere_id)
-	output_path = dialog.get_value(path_id)
-	makefolder = dialog.get_value(makefolder_id)
-	if not os.path.exists(output_path):
-		parent = os.path.dirname(output_path)
+	settings.number_of_col = dialog.get_value(col_id)
+	settings.number_of_row = dialog.get_value(row_id)
+	settings.render_hemisphere = dialog.get_value(hemisphere_id)
+	settings.output_path = dialog.get_value(path_id)
+	settings.makefolder = dialog.get_value(makefolder_id)
+	if not os.path.exists(settings.output_path):
+		parent = os.path.dirname(settings.output_path)
 		if not os.path.exists(parent):
 			print _('error_output_folder_not_found')
 			return False
-		os.mkdir(output_path)
-	if number_of_col <= 0:
+		os.mkdir(settings.output_path)
+	if settings.number_of_col <= 0:
 		print _('error_invalid_number_of_col')
 		return False
 	return True
@@ -160,28 +175,34 @@ def rotate_eye (eye, target, frame, rotations, row):
 	rotated_eye = numpy.array(rotated_eye * rotate(target, numpy.array((0, 1, 0)), r))
 	return tuple(rotated_eye[0, :3])
 
+def encode (s):
+	import platform
+	if platform.system() == 'Windows':
+		return s.encode('utf-16')
+	return s
+
 def start_rendering (scene, file_path):
 	global renderinfo
-	settings = scene.animation_settings
+	animation_settings = scene.animation_settings
 	# レンダリング前の設定を保存.
-	saved_step = settings.step
-	saved_starting_frame = settings.starting_frame
-	saved_ending_frame = settings.ending_frame
-	saved_object_movie_mode = settings.object_movie_mode
+	saved_step = animation_settings.step
+	saved_starting_frame = animation_settings.starting_frame
+	saved_ending_frame = animation_settings.ending_frame
+	saved_object_movie_mode = animation_settings.object_movie_mode
 	saved_eye = scene.camera.eye
 	saved_active_shapes = scene.active_shapes
 	scene.select_all()
 	saved_sequence_value = scene.sequence_value
 	try:
-		total_frames = number_of_row * number_of_col
-		settings.step = 1
-		settings.starting_frame = 0
-		settings.ending_frame = total_frames - 1
+		total_frames = settings.number_of_row * settings.number_of_col
+		animation_settings.step = 1
+		animation_settings.starting_frame = 0
+		animation_settings.ending_frame = total_frames - 1
 		renderinfo.start_time = time.time()
-		scene.rendering.start_animation(file_path)
+		scene.rendering.start_animation(encode(file_path))
 		#rad = (2.0 * math.pi) / number_of_col
-		row = (number_of_row * 2 - 1) if render_hemisphere else number_of_row
-		rotations = row * number_of_col - 1
+		row = (settings.number_of_row * 2 - 1) if settings.render_hemisphere else settings.number_of_row
+		rotations = row * settings.number_of_col - 1
 		# 視線が水平になるように視点を移動する.
 		eye = vec4(scene.camera.eye)
 		target = vec4(scene.camera.target)
@@ -201,10 +222,10 @@ def start_rendering (scene, file_path):
 		renderinfo.average_time = float(renderinfo.total_time) / float(total_frames)
 	finally:
 		# レンダリング前の設定を復帰.
-		settings.step = saved_step
-		settings.starting_frame = saved_starting_frame
-		settings.ending_frame = saved_ending_frame
-		settings.object_movie_mode = saved_object_movie_mode
+		animation_settings.step = saved_step
+		animation_settings.starting_frame = saved_starting_frame
+		animation_settings.ending_frame = saved_ending_frame
+		animation_settings.object_movie_mode = saved_object_movie_mode
 		scene.camera.eye = saved_eye
 		scene.active_shapes = saved_active_shapes
 		scene.sequence_value = saved_sequence_value
@@ -319,7 +340,7 @@ def write_index_html (index_path):
 			}
 		};
 		window.onload = function () {
-			objectvr.init(""" + ("%d, %d" % (number_of_col, number_of_row)) + """, 3, 'images/objvr', '0000', '.jpg');
+			objectvr.init(""" + ("%d, %d" % (settings.number_of_col, settings.number_of_row)) + """, 3, 'images/objvr', '0000', '.jpg');
 		}
 	</script>
 </head>
@@ -342,17 +363,17 @@ def write_index_html (index_path):
 
 if open_option_dialog():
 	scene = xshade.scene()
-	if makefolder:
-		scenename = os.path.basename(xshade.shade().active_document)
-		output_path = os.path.join(output_path, scenename)
-		if not os.path.exists(output_path):
-			os.mkdir(output_path)
-	images_path = os.path.join(output_path, 'images')
+	if settings.makefolder:
+		scenename = os.path.basename(xshade.shade().active_document) if xshade.shade().active_document != '' else _('untitled')
+		settings.output_path = os.path.join(settings.output_path, scenename)
+		if not os.path.exists(settings.output_path):
+			os.mkdir(settings.output_path)
+	images_path = os.path.join(settings.output_path, 'images')
 	if not os.path.exists(images_path):
 		os.mkdir(images_path)
 	file_path = os.path.join(images_path, 'objvr.jpg')
 	start_rendering(scene, file_path)
-	index_path = os.path.join(output_path, 'index.html')
+	index_path = os.path.join(settings.output_path, 'index.html')
 	write_index_html(index_path)
 	print _('done')
 else:
