@@ -4,7 +4,7 @@
 # @title \ja Object VR HTML エクスポート \endja
 # @description \en \enden
 # @description \ja \endja
-# @version 0.3.0
+# @version 0.3.1
 #
 
 import os
@@ -64,7 +64,7 @@ def get_text (text):
 		'canceled':{'ja':'キャンセル', 'en':'Canceled'},
 		'objectvr_option':{'ja':'Object VR オプション', 'en':'Object VR'},
 		'output_option':{'ja':'出力オプション', 'en':'Output'},
-		'untitled':{'ja':u'名称未設定', 'en':'Untitled'}
+		'untitled':{'ja':'名称未設定', 'en':'Untitled'}
 	}
 	lang = get_lang()
 	try:
@@ -106,7 +106,7 @@ def open_option_dialog ():
 	settings.number_of_col = dialog.get_value(col_id)
 	settings.number_of_row = dialog.get_value(row_id)
 	settings.render_hemisphere = dialog.get_value(hemisphere_id)
-	settings.output_path = dialog.get_value(path_id)
+	settings.output_path = decode(dialog.get_value(path_id))
 	settings.makefolder = dialog.get_value(makefolder_id)
 	if not os.path.exists(settings.output_path):
 		parent = os.path.dirname(settings.output_path)
@@ -175,10 +175,19 @@ def rotate_eye (eye, target, frame, rotations, row):
 	rotated_eye = numpy.array(rotated_eye * rotate(target, numpy.array((0, 1, 0)), r))
 	return tuple(rotated_eye[0, :3])
 
+# Windows版で日本語ファイルパスを扱う場合、Pythonには unicode 文字列で　Shadeには　utf-8　文字列で渡す.
+# ファイルパスはdecodeでunicode化し、Shadeに渡すときにencodeでutf-8にする.
+
+def decode (s):
+	import platform
+	if platform.system() == 'Windows':
+		return unicode(s, 'utf-8')
+	return s
+
 def encode (s):
 	import platform
 	if platform.system() == 'Windows':
-		return s.encode('utf-16')
+		return s.encode('utf-8')
 	return s
 
 def start_rendering (scene, file_path):
@@ -365,15 +374,15 @@ if open_option_dialog():
 	scene = xshade.scene()
 	if settings.makefolder:
 		scenename = os.path.basename(xshade.shade().active_document) if xshade.shade().active_document != '' else _('untitled')
-		settings.output_path = os.path.join(settings.output_path, scenename)
+		settings.output_path = os.path.join(settings.output_path, decode(scenename))
 		if not os.path.exists(settings.output_path):
 			os.mkdir(settings.output_path)
-	images_path = os.path.join(settings.output_path, 'images')
+	images_path = os.path.join(settings.output_path, decode('images'))
 	if not os.path.exists(images_path):
 		os.mkdir(images_path)
-	file_path = os.path.join(images_path, 'objvr.jpg')
+	file_path = os.path.join(images_path, decode('objvr.jpg'))
 	start_rendering(scene, file_path)
-	index_path = os.path.join(settings.output_path, 'index.html')
+	index_path = os.path.join(settings.output_path, decode('index.html'))
 	write_index_html(index_path)
 	print _('done')
 else:
