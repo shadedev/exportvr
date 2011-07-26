@@ -4,7 +4,7 @@
 # @title \ja Object VR HTML エクスポート \endja
 # @description \en \enden
 # @description \ja \endja
-# @version 0.3.1
+# @version 0.3.2
 #
 
 import os
@@ -22,18 +22,27 @@ SCRIPT_UUID = "c50b3d49-6573-447c-96d2-edcf903f6bf8"
 class Settings:
 	number_of_col = 30
 	number_of_row = 19
-	default_number_of_col = 30
-	default_number_of_row = 19
 	render_hemisphere = False
 	makefolder = False
 	output_path = None
+	extension = 0
 settings = Settings
+defaults = Settings
+
+def output_extension ():
+	extensions = {0:'.jpg', 1:'.png'}
+	return extensions[settings.extension]
+def stepX (speed):
+	return speed/settings.number_of_col
+def stepY (speed):
+	return speed/settings.number_of_row
 
 class RenderingInfo:
 	start_time = 0
 	total_time = 0
 	total_frames = 0
 	average_time = 0
+	image_size = (320, 240)
 renderinfo = RenderingInfo
 
 def get_lang ():
@@ -64,7 +73,8 @@ def get_text (text):
 		'canceled':{'ja':'キャンセル', 'en':'Canceled'},
 		'objectvr_option':{'ja':'Object VR オプション', 'en':'Object VR'},
 		'output_option':{'ja':'出力オプション', 'en':'Output'},
-		'untitled':{'ja':'名称未設定', 'en':'Untitled'}
+		'untitled':{'ja':'名称未設定', 'en':'Untitled'},
+		'extensions':{'ja':'出力フォーマット/JPEG(.jpg)/PNG(.png)', 'en':'Output Format/JPEG(.jpg)/PNG(.png)'}
 	}
 	lang = get_lang()
 	try:
@@ -94,12 +104,22 @@ def open_option_dialog ():
 	dialog.begin_group(_('output_option'))
 	path_id = dialog.append_path(_('output_folder'))
 	makefolder_id = dialog.append_bool(_('make_scenename_subfolder'))
+	extension_id = dialog.append_selection(_('extensions'))
 	dialog.end_group()
+	# set_value
+	if settings.output_path == None: dialog.set_value(path_id, get_default_path())
+	dialog.set_value(col_id, settings.number_of_col)
+	dialog.set_value(row_id, settings.number_of_row)
+	dialog.set_value(hemisphere_id, settings.render_hemisphere)
+	dialog.set_value(makefolder_id, settings.makefolder)
+	dialog.set_value(extension_id, settings.extension)
+	# set_default_value
 	dialog.set_default_value(path_id, get_default_path())
-	dialog.set_default_value(col_id, settings.default_number_of_col)
-	dialog.set_default_value(row_id, settings.default_number_of_row)
-	dialog.set_default_value(hemisphere_id, False)
-	dialog.set_default_value(makefolder_id, False)
+	dialog.set_default_value(col_id, defaults.number_of_col)
+	dialog.set_default_value(row_id, defaults.number_of_row)
+	dialog.set_default_value(hemisphere_id, defaults.render_hemisphere)
+	dialog.set_default_value(makefolder_id, defaults.makefolder)
+	dialog.set_default_value(extension_id, defaults.extension)
 	dialog.append_default_button()
 	if not dialog.ask('Object VR'):
 		return False
@@ -108,6 +128,7 @@ def open_option_dialog ():
 	settings.render_hemisphere = dialog.get_value(hemisphere_id)
 	settings.output_path = decode(dialog.get_value(path_id))
 	settings.makefolder = dialog.get_value(makefolder_id)
+	settings.extension = dialog.get_value(extension_id)
 	if not os.path.exists(settings.output_path):
 		parent = os.path.dirname(settings.output_path)
 		if not os.path.exists(parent):
@@ -192,6 +213,7 @@ def encode (s):
 
 def start_rendering (scene, file_path):
 	global renderinfo
+	renderinfo.image_size = scene.rendering.image_size
 	animation_settings = scene.animation_settings
 	# レンダリング前の設定を保存.
 	saved_step = animation_settings.step
@@ -277,8 +299,8 @@ def write_index_html (index_path):
 				return name + m.substr(m.length - num.length) + ext;
 			},
 			rotate: function (e) {
-				var deltaX = parseInt((objectvr._firstX - e.clientX) / objectvr._step);
-				var deltaY = parseInt((objectvr._firstY - e.clientY) / objectvr._step);
+				var deltaX = parseInt((objectvr._firstX - e.clientX) / objectvr._stepX);
+				var deltaY = parseInt((objectvr._firstY - e.clientY) / objectvr._stepY);
 				objectvr._X = objectvr._lastX + deltaX;
 				objectvr._Y = objectvr._lastY + deltaY;
 				if (0 <= objectvr._X) { objectvr._X = (objectvr._X % (objectvr._cols - 1)); }
@@ -297,7 +319,7 @@ def write_index_html (index_path):
 				objectvr.rotate(e.touches[0]);
 				preventDefault_(e);
 			},
-			init: function(cols, rows, step, name, num, ext) {
+			init: function(cols, rows, stepX, stepY, name, num, ext) {
 				var frames = cols * rows;
 				for (var i = 0; i < frames; ++i) {
 					var imgObj = new Image();
@@ -309,7 +331,8 @@ def write_index_html (index_path):
 				this._cols = cols;
 				this._rows = rows;
 				this._N = frames;
-				this._step = step;
+				this._stepX = stepX;
+				this._stepY = stepY;
 				this._firstX = 0;
 				this._firstY = 0;
 				this._X = cols - 1;
@@ -349,7 +372,7 @@ def write_index_html (index_path):
 			}
 		};
 		window.onload = function () {
-			objectvr.init(""" + ("%d, %d" % (settings.number_of_col, settings.number_of_row)) + """, 3, 'images/objvr', '0000', '.jpg');
+			objectvr.init(""" + ("%d, %d, %d, %d, 'images/objvr', '0000', '%s'" % (settings.number_of_col, settings.number_of_row, stepX(90), stepY(90), output_extension())) + """);
 		}
 	</script>
 </head>
@@ -357,7 +380,7 @@ def write_index_html (index_path):
 	<header>
 		<h1>HTML5 Object VR</h1>
 	</header>
-	<section id="objectvr-main" style="width:320px; margin:0 auto 0 auto;">
+	<section id="objectvr-main" style="width:""" + ('%d' % renderinfo.image_size[0]) + """px; margin:0 auto 0 auto;">
 		<div id="viewer">Loading...</div>
 		<section id="rendering_info">
 			<p>Rendering Info</p>
@@ -373,14 +396,14 @@ def write_index_html (index_path):
 if open_option_dialog():
 	scene = xshade.scene()
 	if settings.makefolder:
-		scenename = os.path.basename(xshade.shade().active_document) if xshade.shade().active_document != '' else _('untitled')
+		scenename = os.path.splitext(os.path.basename(xshade.shade().active_document))[0] if xshade.shade().active_document != '' else _('untitled')
 		settings.output_path = os.path.join(settings.output_path, decode(scenename))
 		if not os.path.exists(settings.output_path):
 			os.mkdir(settings.output_path)
 	images_path = os.path.join(settings.output_path, decode('images'))
 	if not os.path.exists(images_path):
 		os.mkdir(images_path)
-	file_path = os.path.join(images_path, decode('objvr.jpg'))
+	file_path = os.path.join(images_path, decode('objvr' + output_extension()))
 	start_rendering(scene, file_path)
 	index_path = os.path.join(settings.output_path, decode('index.html'))
 	write_index_html(index_path)
